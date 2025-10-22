@@ -1,4 +1,4 @@
-// main.ts — KV-lean RAG with packed chunks + RAM index + exact Sources
+// main.ts — KV-lean RAG with packed chunks + RAM index +  exact Sources
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
