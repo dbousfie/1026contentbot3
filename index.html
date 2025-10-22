@@ -2,29 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>1026 Course Content Bot 2</title>
+  <title>1026 Course Content Bot</title>
   <link href="https://fonts.googleapis.com/css2?family=Lato&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --dark-blue: #0b3d91;   /* Deep academic blue */
-      --light-blue: #e0f2ff;  /* Soft sky blue */
+      --dark-green: #0b9124;   /* Deep academic green */
+      --light-green: #e0ffe6;  /* Soft mint green */
     }
 
     body {
       font-family: 'Lato', sans-serif;
       margin: 2rem;
-      color: var(--dark-blue);
-      background-color: var(--light-blue);
+      color: var(--dark-green);
+      background-color: var(--light-green);
 
-      /* subtle blue watermark across background */
+      /* subtle green watermark across background */
       background-image:
         url("data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='900' height='320'>\
   <rect width='100%' height='100%' fill='none'/>\
   <g transform='rotate(-30 0 0)'>\
-    <text x='0' y='40' fill='%230b3d91' fill-opacity='0.12' font-size='26' font-family='Lato, Arial, sans-serif'>ONLY CONTENT QUESTIONS WEEKS 1-4 • ONLY CONTENT QUESTIONS WEEKS 1-4 •</text>\
-    <text x='0' y='140' fill='%230b3d91' fill-opacity='0.12' font-size='26' font-family='Lato, Arial, sans-serif'>ONLY CONTENT QUESTIONS WEEKS 1-4 • ONLY CONTENT QUESTIONS WEEKS 1-4 •</text>\
-    <text x='0' y='240' fill='%230b3d91' fill-opacity='0.12' font-size='26' font-family='Lato, Arial, sans-serif'>ONLY CONTENT QUESTIONS WEEKS 1-4 • ONLY CONTENT QUESTIONS WEEKS 1-4 •</text>\
+    <text x='0' y='40' fill='%230b9124' fill-opacity='0.12' font-size='26' font-family='Lato, Arial, sans-serif'>ONLY CONTENT QUESTIONS WEEKS 1-4 • ONLY CONTENT QUESTIONS WEEKS 1-4 •</text>\
+    <text x='0' y='140' fill='%230b9124' fill-opacity='0.12' font-size='26' font-family='Lato, Arial, sans-serif'>ONLY CONTENT QUESTIONS WEEKS 1-4 • ONLY CONTENT QUESTIONS WEEKS 1-4 •</text>\
+    <text x='0' y='240' fill='%230b9124' fill-opacity='0.12' font-size='26' font-family='Lato, Arial, sans-serif'>ONLY CONTENT QUESTIONS WEEKS 1-4 • ONLY CONTENT QUESTIONS WEEKS 1-4 •</text>\
   </g>\
 </svg>");
       background-repeat: repeat;
@@ -44,7 +44,7 @@
     }
 
     textarea::placeholder {
-      color: var(--dark-blue);
+      color: var(--dark-green);
     }
 
     #response {
@@ -59,7 +59,7 @@
     }
 
     button {
-      background-color: var(--dark-blue);
+      background-color: var(--dark-green);
       color: #fff;
       border: none;
       padding: 0.5rem 1rem;
@@ -74,7 +74,7 @@
   </style>
 </head>
 <body>
-  <h2>CONTENT ONLY BOT WEEK 5-12 Lecture Content Questions ONLY</h2>
+  <h2>CONTENT ONLY BOT WEEK 1-4 Lecture Content Questions ONLY</h2>
   <form id="queryForm">
     <textarea name="query" id="query" rows="5" cols="60" placeholder="Type your question about lecture content here..."></textarea><br />
     <button type="submit">Submit</button>
