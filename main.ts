@@ -1,4 +1,4 @@
-// main.ts — KV-lean RAG with packed chunks + RAM index +  exact Sources
+// main.ts — KV-lean RAG with packed chunks + RAM index + exact Sources + Qualtrics SURVEY logging
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
@@ -9,10 +9,15 @@ const EMBEDDING_MODEL      = Deno.env.get("EMBEDDING_MODEL") ?? "text-embedding-
 const ADMIN_TOKEN          = (Deno.env.get("ADMIN_TOKEN") ?? "").trim();
 const SYLLABUS_LINK        = Deno.env.get("SYLLABUS_LINK") ?? "";
 
-const STRICT_RAG = (Deno.env.get("STRICT_RAG") ?? "true").toLowerCase() === "true";
-const MIN_SCORE  = Number(Deno.env.get("RAG_MIN_SCORE") ?? "0.25");
-const TOP_K      = Number(Deno.env.get("RAG_TOP_K") ?? "3");
-const CACHE_TTL_MIN = Number(Deno.env.get("CACHE_TTL_MIN") ?? "60"); // refresh index hourly by default
+const STRICT_RAG     = (Deno.env.get("STRICT_RAG") ?? "true").toLowerCase() === "true";
+const MIN_SCORE      = Number(Deno.env.get("RAG_MIN_SCORE") ?? "0.25");
+const TOP_K          = Number(Deno.env.get("RAG_TOP_K") ?? "3");
+const CACHE_TTL_MIN  = Number(Deno.env.get("CACHE_TTL_MIN") ?? "60"); // refresh index hourly
+
+// --- Qualtrics SURVEY logging (same style as your other bots) ---
+const QUALTRICS_API_TOKEN   = Deno.env.get("QUALTRICS_API_TOKEN") ?? "";
+const QUALTRICS_SURVEY_ID   = Deno.env.get("QUALTRICS_SURVEY_ID") ?? "";
+const QUALTRICS_DATACENTER  = Deno.env.get("QUALTRICS_DATACENTER") ?? "";
 
 /* ===== CORS ===== */
 const CORS = {
@@ -30,7 +35,7 @@ const kv = await Deno.openKv();
 type Pack = { id: string; i: number; title: string; text: string; e: number[] };
 type Meta = { title: string; n: number };
 
-/* ===== Admin auth (trim + alt header) ===== */
+/* ===== Admin auth ===== */
 function adminTokenFrom(req: Request): string {
   const auth = req.headers.get("authorization") ?? "";
   const alt  = req.headers.get("x-admin-token") ?? "";
@@ -68,10 +73,38 @@ async function embed(text: string): Promise<number[]> {
   return j.data[0].embedding as number[];
 }
 
+/* ===== Qualtrics (Survey Responses API) — fire-and-forget ===== */
+async function logQualtricsSurvey(responseText: string, queryText: string) {
+  if (!QUALTRICS_API_TOKEN || !QUALTRICS_SURVEY_ID || !QUALTRICS_DATACENTER) return;
+  const url = `https://${QUALTRICS_DATACENTER}.qualtrics.com/API/v3/surveys/${QUALTRICS_SURVEY_ID}/responses`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 1500);
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-TOKEN": QUALTRICS_API_TOKEN,
+      },
+      body: JSON.stringify({
+        values: {
+          responseText,
+          queryText,
+        },
+      }),
+      signal: controller.signal,
+    });
+  } catch {
+    // never block user responses
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /* ===== RAM index ===== */
 let INDEX: Pack[] | null = null;
 let INDEX_LOADED_AT = 0;
-let INDEX_VERSION_SEEN = 0; // bump on ingest/wipe
+let INDEX_VERSION_SEEN = 0;
 
 async function loadIndex(force = false) {
   const now = Date.now();
@@ -88,7 +121,6 @@ async function loadIndex(force = false) {
 
   const packs: Pack[] = [];
   for await (const e of kv.list<Pack>({ prefix: ["pack"] })) {
-    // keys: ["pack", id, i]
     const k = e.key as Deno.KvKey;
     if (k.length === 3 && k[0] === "pack") {
       const v = e.value as any;
@@ -113,7 +145,6 @@ async function handleIngest(req: Request) {
 
   for (const it of body.items || []) {
     const parts = chunkByChars(it.text);
-    // Write meta (1 key) + packed chunks (1 key each)
     await kv.set(["lec", it.id, "meta"], { title: it.title, n: parts.length } as Meta);
     for (let i = 0; i < parts.length; i++) {
       const text = parts[i];
@@ -121,10 +152,8 @@ async function handleIngest(req: Request) {
       await kv.set(["pack", it.id, i], { title: it.title, text, e } satisfies Omit<Pack,"id"|"i">);
     }
   }
-  // bump index version so live instances reload in RAM
   const cur = (await kv.get<number>(["index_version"])).value ?? 0;
   await kv.set(["index_version"], cur + 1);
-  // refresh local cache
   await loadIndex(true);
 
   return respond("ok");
@@ -140,10 +169,7 @@ async function handleRetitle(req: Request) {
   const meta = await kv.get<Meta>(["lec", body.id, "meta"]);
   if (!meta.value) return respond("not found", 404);
 
-  // update meta title
   await kv.set(["lec", body.id, "meta"], { ...meta.value, title: body.title });
-
-  // update titles inside packed chunks (no re-embed)
   for await (const e of kv.list({ prefix: ["pack", body.id] })) {
     const v = e.value as any;
     await kv.set(e.key, { ...v, title: body.title });
@@ -191,7 +217,7 @@ async function handleChat(req: Request) {
 
   const syllabus = await Deno.readTextFile("syllabus.md").catch(() => "Error loading syllabus.");
 
-  await loadIndex(); // warm or reuse RAM index
+  await loadIndex();
   const index = INDEX ?? [];
   if (!index.length) {
     return respond(`I don’t have any course materials loaded yet. Please ingest and try again.${footer()}`);
@@ -229,7 +255,13 @@ async function handleChat(req: Request) {
   // enforce exact Sources (ignore model-written ones)
   const cleaned = String(base).replace(/^\s*Sources:.*$/gmi, "").trim();
   const exactSources = `\n\nSources: ${sourceTitles.join("; ")}`;
-  return respond(`${cleaned}${exactSources}${footer()}`);
+  const finalText = `${cleaned}${exactSources}${footer()}`;
+
+  // Qualtrics survey logging (same payload shape as your template)
+  // fire-and-forget; never await
+  logQualtricsSurvey(finalText, userQuery);
+
+  return respond(finalText);
 }
 
 /* ===== Router ===== */
