@@ -90,6 +90,12 @@
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
+
+      // --- MIDTERM LOCKOUT START ---
+      responseBox.textContent = "The bot is temporarily disabled for the midterm. It will be back online at 8:00 PM. Good luck!";
+      return; // This command stops the rest of the code from running
+      // --- MIDTERM LOCKOUT END ---
+
       responseBox.textContent = "Loading...";
       const query = document.getElementById("query").value;
 
